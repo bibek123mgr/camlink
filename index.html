@@ -3,254 +3,172 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>CamLink — phone as webcam + mic</title>
+  <title>CamLink — phone as webcam + mic + virtual cam guide</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
   <style>
     :root{
-      --bg:#12141a;
-      --surface:#1b1e27;
-      --surface-2:#242833;
-      --line:rgba(255,255,255,0.09);
-      --text:#edeef2;
-      --text-dim:#8a8f9c;
-      --live:#35d0a0;
-      --wait:#e8a33d;
-      --err:#e8674d;
+      --bg:#12141a; --surface:#1b1e27; --surface-2:#242833;
+      --line:rgba(255,255,255,0.09); --text:#edeef2; --text-dim:#8a8f9c;
+      --live:#35d0a0; --wait:#e8a33d; --err:#e8674d; --accent:#5b8def;
     }
     *{box-sizing:border-box;}
     html,body{margin:0;padding:0;}
     body{
-      background:var(--bg);
-      color:var(--text);
+      background:var(--bg); color:var(--text);
       font-family:'Inter',system-ui,sans-serif;
-      min-height:100vh;
-      display:flex;
-      justify-content:center;
-      padding:20px 12px 48px;
+      min-height:100vh; display:flex; justify-content:center;
+      padding:20px 12px 64px;
     }
-    .wrap{width:100%;max-width:540px;}
+    .wrap{width:100%;max-width:560px;}
     h1{
-      font-family:'Space Grotesk',sans-serif;
-      font-size:1.5rem;
-      font-weight:600;
-      margin:0 0 4px;
-      letter-spacing:-0.01em;
+      font-family:'Space Grotesk',sans-serif; font-size:1.5rem;
+      font-weight:600; margin:0 0 4px; letter-spacing:-0.01em;
     }
     .sub{
-      color:var(--text-dim);
-      font-size:0.9rem;
-      line-height:1.5;
-      margin:0 0 24px;
-      max-width:44ch;
+      color:var(--text-dim); font-size:0.9rem;
+      line-height:1.5; margin:0 0 22px; max-width:46ch;
     }
     .tabs{
-      display:flex;
-      border:1px solid var(--line);
-      border-radius:8px;
-      overflow:hidden;
-      margin-bottom:20px;
+      display:flex; border:1px solid var(--line); border-radius:8px;
+      overflow:hidden; margin-bottom:18px;
     }
     .tab{
-      flex:1;
-      padding:11px 0;
-      text-align:center;
-      background:transparent;
-      color:var(--text-dim);
-      border:none;
-      font-family:'Inter',sans-serif;
-      font-size:0.92rem;
-      font-weight:500;
-      cursor:pointer;
-      transition:background 0.15s, color 0.15s;
+      flex:1; padding:11px 0; text-align:center;
+      background:transparent; color:var(--text-dim); border:none;
+      font-family:'Inter',sans-serif; font-size:0.9rem; font-weight:500;
+      cursor:pointer; transition:background 0.15s, color 0.15s;
     }
-    .tab.active{
-      background:var(--surface-2);
-      color:var(--text);
-    }
+    .tab.active{background:var(--surface-2); color:var(--text);}
     .tab:not(.active):hover{background:rgba(255,255,255,0.03);}
-
     .card{
-      background:var(--surface);
-      border:1px solid var(--line);
-      border-radius:10px;
-      padding:20px;
+      background:var(--surface); border:1px solid var(--line);
+      border-radius:10px; padding:20px;
     }
     .panel{display:none;}
     .panel.active{display:block;}
-
     .code{
-      font-family:'Space Grotesk',sans-serif;
-      font-size:2.6rem;
-      font-weight:700;
-      letter-spacing:0.08em;
-      text-align:center;
-      padding:20px 0;
-      background:var(--surface-2);
-      border-radius:8px;
-      margin-bottom:14px;
+      font-family:'Space Grotesk',sans-serif; font-size:2.6rem;
+      font-weight:700; letter-spacing:0.08em; text-align:center;
+      padding:20px 0; background:var(--surface-2);
+      border-radius:8px; margin-bottom:14px;
     }
     .status{
-      display:flex;
-      align-items:center;
-      gap:8px;
-      font-size:0.86rem;
-      color:var(--text-dim);
-      margin-bottom:14px;
+      display:flex; align-items:center; gap:8px;
+      font-size:0.86rem; color:var(--text-dim); margin-bottom:14px;
     }
     .dot{
       width:8px;height:8px;border-radius:50%;
-      background:var(--text-dim);
-      flex-shrink:0;
+      background:var(--text-dim); flex-shrink:0;
       transition:background 0.2s;
     }
     .dot.wait{background:var(--wait);}
     .dot.live{background:var(--live);box-shadow:0 0 0 3px rgba(53,208,160,0.18);}
     .dot.err{background:var(--err);}
-
     button.action{
-      width:100%;
-      padding:12px 0;
-      border-radius:8px;
-      border:1px solid var(--line);
-      background:var(--surface-2);
-      color:var(--text);
-      font-family:'Inter',sans-serif;
-      font-size:0.94rem;
-      font-weight:500;
-      cursor:pointer;
-      margin-bottom:10px;
-      transition:background 0.15s, border-color 0.15s;
+      width:100%; padding:12px 0; border-radius:8px;
+      border:1px solid var(--line); background:var(--surface-2);
+      color:var(--text); font-family:'Inter',sans-serif;
+      font-size:0.94rem; font-weight:500; cursor:pointer;
+      margin-bottom:10px; transition:background 0.15s, border-color 0.15s;
     }
     button.action:hover{border-color:rgba(255,255,255,0.2);}
     button.action.primary{
-      background:var(--live);
-      color:#0c1512;
-      border-color:var(--live);
-      font-weight:600;
+      background:var(--live); color:#0c1512;
+      border-color:var(--live); font-weight:600;
     }
     button.action.primary:hover{opacity:0.92;}
     button.action:disabled{opacity:0.45;cursor:not-allowed;}
-
-    .row-buttons{
-      display:flex;
-      gap:8px;
-      margin-bottom:10px;
+    button.action.ghost{
+      background:transparent; border-color:var(--line);
+      font-size:0.86rem; padding:9px 0;
     }
-    .row-buttons button{
-      flex:1;
-      margin-bottom:0;
-    }
-
+    .row-buttons{display:flex; gap:8px; margin-bottom:10px;}
+    .row-buttons button{flex:1; margin-bottom:0;}
     input.code-input{
-      width:100%;
-      font-family:'Space Grotesk',sans-serif;
-      font-size:1.6rem;
-      letter-spacing:0.12em;
-      text-align:center;
-      padding:12px 0;
-      border-radius:8px;
-      border:1px solid var(--line);
-      background:var(--surface-2);
-      color:var(--text);
-      margin-bottom:12px;
+      width:100%; font-family:'Space Grotesk',sans-serif;
+      font-size:1.6rem; letter-spacing:0.12em; text-align:center;
+      padding:12px 0; border-radius:8px; border:1px solid var(--line);
+      background:var(--surface-2); color:var(--text); margin-bottom:12px;
     }
     input.code-input:focus{outline:none;border-color:var(--live);}
-
     video{
-      width:100%;
-      border-radius:8px;
-      background:#000;
-      margin-top:6px;
-      display:block;
-      max-height:320px;
-      object-fit:cover;
+      width:100%; border-radius:8px; background:#000;
+      margin-top:6px; display:block; max-height:320px; object-fit:cover;
     }
-
     .note{
-      font-size:0.8rem;
-      color:var(--text-dim);
-      line-height:1.55;
-      margin-top:16px;
-      padding-top:16px;
-      border-top:1px solid var(--line);
+      font-size:0.8rem; color:var(--text-dim); line-height:1.55;
+      margin-top:16px; padding-top:16px; border-top:1px solid var(--line);
     }
     .note strong{color:var(--text);font-weight:600;}
-
-    .field-label{
-      font-size:0.8rem;
-      color:var(--text-dim);
-      margin-bottom:6px;
-    }
-
+    .field-label{font-size:0.8rem; color:var(--text-dim); margin-bottom:6px;}
     .toggle-row{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      margin:6px 0 12px;
-      font-size:0.86rem;
+      display:flex; align-items:center; gap:14px;
+      margin:6px 0 12px; font-size:0.86rem; flex-wrap:wrap;
     }
     .toggle-row label{
-      display:flex;
-      align-items:center;
-      gap:6px;
-      color:var(--text-dim);
-      cursor:pointer;
+      display:flex; align-items:center; gap:6px;
+      color:var(--text-dim); cursor:pointer;
     }
     .toggle-row input[type="checkbox"]{
-      accent-color:var(--live);
-      width:16px;height:16px;
-      cursor:pointer;
+      accent-color:var(--live); width:16px;height:16px; cursor:pointer;
     }
-
-    .select-wrap{
-      position:relative;
-      margin-bottom:12px;
-    }
+    .select-wrap{position:relative; margin-bottom:12px;}
     .select-wrap select{
-      width:100%;
-      padding:10px 12px;
-      border-radius:8px;
-      border:1px solid var(--line);
-      background:var(--surface-2);
-      color:var(--text);
-      font-family:'Inter',sans-serif;
-      font-size:0.9rem;
-      appearance:none;
-      cursor:pointer;
+      width:100%; padding:10px 12px; border-radius:8px;
+      border:1px solid var(--line); background:var(--surface-2);
+      color:var(--text); font-family:'Inter',sans-serif;
+      font-size:0.9rem; appearance:none; cursor:pointer;
     }
     .select-wrap select:focus{outline:none;border-color:var(--live);}
     .select-wrap::after{
-      content:"▼";
-      position:absolute;
-      right:14px;top:50%;
-      transform:translateY(-50%);
-      color:var(--text-dim);
-      font-size:0.7rem;
-      pointer-events:none;
+      content:"▼"; position:absolute; right:14px; top:50%;
+      transform:translateY(-50%); color:var(--text-dim);
+      font-size:0.7rem; pointer-events:none;
     }
-
     .badge{
-      display:inline-block;
-      font-size:0.7rem;
-      padding:2px 8px;
-      border-radius:20px;
-      background:var(--surface-2);
-      border:1px solid var(--line);
-      color:var(--text-dim);
-      margin-left:6px;
-      font-weight:500;
-      vertical-align:middle;
+      display:inline-block; font-size:0.7rem; padding:2px 8px;
+      border-radius:20px; background:var(--surface-2);
+      border:1px solid var(--line); color:var(--text-dim);
+      margin-left:6px; font-weight:500; vertical-align:middle;
     }
     .badge.live{background:rgba(53,208,160,0.15);border-color:var(--live);color:var(--live);}
+    .guide{
+      margin-top:14px; padding:14px; border-radius:8px;
+      background:var(--surface-2); border:1px solid var(--line);
+      font-size:0.82rem; line-height:1.6;
+    }
+    .guide h3{
+      font-family:'Space Grotesk',sans-serif; font-size:0.95rem;
+      margin:0 0 8px; font-weight:600; color:var(--text);
+    }
+    .guide ol{margin:0; padding-left:18px; color:var(--text-dim);}
+    .guide li{margin-bottom:6px;}
+    .guide code{
+      background:rgba(0,0,0,0.3); padding:1px 5px;
+      border-radius:4px; font-size:0.78rem;
+      font-family:ui-monospace,monospace; color:var(--live);
+    }
+    .guide .close-guide{
+      float:right; background:none; border:none;
+      color:var(--text-dim); font-size:0.85rem;
+      cursor:pointer; padding:0; margin-top:-2px;
+    }
+    .guide .close-guide:hover{color:var(--text);}
+    .pill{
+      display:inline-block; font-size:0.7rem; padding:3px 8px;
+      border-radius:6px; background:rgba(91,141,239,0.15);
+      color:var(--accent); border:1px solid rgba(91,141,239,0.3);
+      margin-right:6px;
+    }
   </style>
 </head>
 <body>
 <div class="wrap">
   <h1>CamLink <span class="badge" id="modeBadge">Webcam + Mic</span></h1>
-  <p class="sub">Stream your phone's camera & microphone into your desktop browser over a direct peer-to-peer connection. Works as a virtual webcam source.</p>
+  <p class="sub">Stream your phone's camera & microphone into your desktop browser. Built-in guide to make it appear as a real system camera.</p>
 
   <div class="tabs">
     <button class="tab active" id="tabDesktop">Desktop</button>
@@ -259,27 +177,39 @@
 
   <div class="card">
 
-    <!-- DESKTOP PANEL -->
+    <!-- ================= DESKTOP PANEL ================= -->
     <div class="panel active" id="panelDesktop">
       <div class="field-label">Open the Phone tab on your phone and enter this code</div>
       <div class="code" id="roomCode">····</div>
       <div class="status"><span class="dot wait" id="dDot"></span><span id="dStatus">Setting up…</span></div>
       <button class="action" id="copyLink">Copy link for phone</button>
       <video id="remoteVideo" autoplay playsinline style="display:none;"></video>
-      <div class="note">
-        <strong>Using as a real webcam</strong><br>
-        1. Keep this tab open — it shows the live feed.<br>
-        2. In Zoom / Meet / Teams, choose <strong>OBS Virtual Camera</strong> (or capture this tab in OBS).<br>
-        3. Audio from the phone mic is also streamed (mute the desktop mic).
+
+      <!-- ===== VIRTUAL CAMERA GUIDE (Option B + C) ===== -->
+      <div class="guide" id="virtualCamGuide">
+        <button class="close-guide" id="closeGuide" title="Hide guide">✕</button>
+        <h3>📷 Make it a system camera (no screen share)</h3>
+        <p style="margin:4px 0 10px;color:var(--text-dim);">
+          A webpage can't install a driver, so to see CamLink inside Zoom / Meet / Chrome's camera dropdown, you need a virtual driver. Pick one:
+        </p>
+        <ol>
+          <li><span class="pill">Easiest</span>Install <strong>OBS Studio</strong> (free) → it installs <code>OBS Virtual Camera</code>.</li>
+          <li>In OBS: <code>+</code> under Sources → <strong>Window Capture</strong> → pick this browser tab.</li>
+          <li>Click <strong>Start Virtual Camera</strong> in OBS (bottom right).</li>
+          <li>Now in Zoom/Meet/Chrome settings, choose <code>OBS Virtual Camera</code> — CamLink feed appears as a real webcam.</li>
+        </ol>
+        <p style="margin:10px 0 0;color:var(--text-dim);">
+          <strong>Alternative (no OBS):</strong> Use <strong>EpocCam</strong>, <strong>Iriun</strong>, or <strong>DroidCam</strong> — they install a virtual driver and also let you select the phone as a camera. CamLink gives you the same result but stays open-source.
+        </p>
       </div>
     </div>
 
-    <!-- PHONE PANEL -->
+    <!-- ================= PHONE PANEL ================= -->
     <div class="panel" id="panelPhone">
       <div class="field-label">Enter the code shown on your desktop</div>
       <input class="code-input" id="codeInput" inputmode="numeric" maxlength="4" placeholder="····">
 
-      <!-- Camera selection -->
+      <!-- Camera selection (Option A: in-page picker) -->
       <div class="select-wrap">
         <select id="cameraSelect" aria-label="Camera">
           <option value="">-- Select camera --</option>
@@ -288,18 +218,33 @@
 
       <!-- Toggles -->
       <div class="toggle-row">
-        <label><input type="checkbox" id="useAudio" checked> Microphone</label>
-        <label><input type="checkbox" id="useVideo" checked> Camera</label>
+        <label><input type="checkbox" id="useAudio" checked> 🎤 Microphone</label>
+        <label><input type="checkbox" id="useVideo" checked> 📹 Camera</label>
+        <label><input type="checkbox" id="useTorch"> 🔦 Torch</label>
+      </div>
+
+      <!-- Resolution selector (Option A) -->
+      <div class="select-wrap">
+        <select id="resolutionSelect" aria-label="Resolution">
+          <option value="1280x720">1280 × 720 (HD)</option>
+          <option value="1920x1080">1920 × 1080 (Full HD)</option>
+          <option value="640x480">640 × 480 (SD)</option>
+          <option value="3840x2160">3840 × 2160 (4K)</option>
+        </select>
       </div>
 
       <div class="row-buttons">
         <button class="action primary" id="startCamera">Start &amp; connect</button>
         <button class="action" id="flipCamera" disabled>Flip</button>
       </div>
+      <div class="row-buttons">
+        <button class="action ghost" id="stopStream" disabled>Stop</button>
+        <button class="action ghost" id="fullscreenBtn" style="display:none;">Fullscreen</button>
+      </div>
 
       <div class="status"><span class="dot wait" id="pDot"></span><span id="pStatus">Not connected</span></div>
       <video id="localVideo" autoplay playsinline muted style="display:none;"></video>
-      <div class="note">Keep this tab open and your phone unlocked while streaming. Works best on the same WiFi network as your desktop.</div>
+      <div class="note">Keep this tab open and your phone unlocked while streaming. Works best on the same WiFi network.</div>
     </div>
 
   </div>
@@ -307,7 +252,7 @@
 
 <script>
 (function(){
-  // ---------- GLOBALS ----------
+  // ================= GLOBAL STATE =================
   const params = new URLSearchParams(location.search);
   const tabDesktop = document.getElementById('tabDesktop');
   const tabPhone = document.getElementById('tabPhone');
@@ -315,36 +260,41 @@
   const panelPhone = document.getElementById('panelPhone');
   const modeBadge = document.getElementById('modeBadge');
 
-  // Desktop elements
+  // Desktop
   const roomCodeEl = document.getElementById('roomCode');
   const dDot = document.getElementById('dDot');
   const dStatus = document.getElementById('dStatus');
   const remoteVideo = document.getElementById('remoteVideo');
   const copyLinkBtn = document.getElementById('copyLink');
+  const closeGuide = document.getElementById('closeGuide');
+  const virtualCamGuide = document.getElementById('virtualCamGuide');
 
-  // Phone elements
+  // Phone
   const codeInput = document.getElementById('codeInput');
   const startCameraBtn = document.getElementById('startCamera');
   const flipCameraBtn = document.getElementById('flipCamera');
+  const stopStreamBtn = document.getElementById('stopStream');
+  const fullscreenBtn = document.getElementById('fullscreenBtn');
   const pDot = document.getElementById('pDot');
   const pStatus = document.getElementById('pStatus');
   const localVideo = document.getElementById('localVideo');
   const cameraSelect = document.getElementById('cameraSelect');
+  const resolutionSelect = document.getElementById('resolutionSelect');
   const useAudioChk = document.getElementById('useAudio');
   const useVideoChk = document.getElementById('useVideo');
+  const useTorchChk = document.getElementById('useTorch');
 
-  // State
+  // Peer / media state
   let desktopPeer = null;
   let phonePeer = null;
   let currentStream = null;
   let currentFacingMode = 'environment';
   let activeCall = null;
   let isPhoneMode = false;
+  let torchSupported = false;
 
-  // ---------- UTILS ----------
-  function randomCode(){
-    return String(Math.floor(1000 + Math.random()*9000));
-  }
+  // ================= UI HELPERS =================
+  function randomCode(){ return String(Math.floor(1000 + Math.random()*9000)); }
   function setStatus(dotEl, textEl, mode, text){
     dotEl.className = 'dot ' + (mode || '');
     textEl.textContent = text;
@@ -361,40 +311,32 @@
   tabDesktop.onclick = () => showTab('desktop');
   tabPhone.onclick = () => showTab('phone');
 
-  // ---------- DESKTOP PEER SETUP ----------
+  // Hide guide
+  closeGuide.onclick = () => { virtualCamGuide.style.display = 'none'; };
+
+  // ================= DESKTOP PEER =================
   const myCode = randomCode();
   roomCodeEl.textContent = myCode;
 
-  function initDesktopPeer(){
-    if (desktopPeer && !desktopPeer.destroyed) {
-      desktopPeer.destroy();
-    }
-    desktopPeer = new Peer('camlink-' + myCode, {
-      debug: 1,
-    });
+  function initDesktopPeer(code){
+    if (desktopPeer && !desktopPeer.destroyed) desktopPeer.destroy();
+    desktopPeer = new Peer('camlink-' + code, { debug: 1 });
 
     desktopPeer.on('open', () => {
       setStatus(dDot, dStatus, 'wait', 'Waiting for phone to connect…');
     });
     desktopPeer.on('error', (err) => {
       console.error('Desktop peer error:', err);
-      // If ID taken (e.g. hot reload), generate new code and retry
       if (err.type === 'unavailable-id') {
         const newCode = randomCode();
         roomCodeEl.textContent = newCode;
-        // re-init with new code
-        setTimeout(() => {
-          if (desktopPeer) desktopPeer.destroy();
-          initDesktopPeerWithCode(newCode);
-        }, 200);
+        setTimeout(() => initDesktopPeer(newCode), 200);
       } else {
         setStatus(dDot, dStatus, 'err', 'Connection error — refresh to retry');
       }
     });
     desktopPeer.on('call', (call) => {
-      // Answer with no stream (we just receive)
       call.answer();
-      // Store active call for potential control
       activeCall = call;
       call.on('stream', (stream) => {
         remoteVideo.srcObject = stream;
@@ -418,65 +360,30 @@
       });
     });
   }
+  initDesktopPeer(myCode);
 
-  function initDesktopPeerWithCode(code){
-    // Helper to re-init with a specific code
-    if (desktopPeer) desktopPeer.destroy();
-    desktopPeer = new Peer('camlink-' + code, { debug: 1 });
-    desktopPeer.on('open', () => {
-      setStatus(dDot, dStatus, 'wait', 'Waiting for phone to connect…');
-    });
-    desktopPeer.on('error', (err) => {
-      console.error(err);
-      setStatus(dDot, dStatus, 'err', 'Connection error — refresh');
-    });
-    desktopPeer.on('call', (call) => {
-      call.answer();
-      activeCall = call;
-      call.on('stream', (stream) => {
-        remoteVideo.srcObject = stream;
-        remoteVideo.style.display = 'block';
-        remoteVideo.volume = 1.0;
-        setStatus(dDot, dStatus, 'live', 'Connected — live feed + audio');
-        modeBadge.classList.add('live');
-        modeBadge.textContent = '● Live';
-      });
-      call.on('close', () => {
-        setStatus(dDot, dStatus, 'wait', 'Phone disconnected');
-        remoteVideo.style.display = 'none';
-        remoteVideo.srcObject = null;
-        modeBadge.classList.remove('live');
-        modeBadge.textContent = isPhoneMode ? 'Phone mode' : 'Webcam + Mic';
-        activeCall = null;
-      });
-    });
-  }
-
-  // Start desktop peer
-  initDesktopPeer();
-
-  // Copy link
   copyLinkBtn.onclick = () => {
     const link = location.origin + location.pathname + '?code=' + roomCodeEl.textContent + '&mode=phone';
     navigator.clipboard.writeText(link).then(() => {
       copyLinkBtn.textContent = 'Link copied ✓';
       setTimeout(() => copyLinkBtn.textContent = 'Copy link for phone', 1500);
-    }).catch(() => {
-      prompt('Copy this link:', link);
-    });
+    }).catch(() => prompt('Copy this link:', link));
   };
 
-  // ---------- PHONE SIDE ----------
+  // ================= PHONE SIDE =================
   if (params.get('code')) codeInput.value = params.get('code');
   if (params.get('mode') === 'phone') showTab('phone');
 
-  // Enumerate cameras
+  // ---- Camera enumeration + persistence ----
   async function loadCameras(){
     try {
-      // Request permission first to get labels
-      await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      // Ask once so labels are available
+      const tmp = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      tmp.getTracks().forEach(t => t.stop());
+
       const devices = await navigator.mediaDevices.enumerateDevices();
       const cams = devices.filter(d => d.kind === 'videoinput');
+
       cameraSelect.innerHTML = '<option value="">-- Select camera --</option>';
       cams.forEach((cam, i) => {
         const opt = document.createElement('option');
@@ -484,32 +391,94 @@
         opt.textContent = cam.label || `Camera ${i+1}`;
         cameraSelect.appendChild(opt);
       });
-      // Try to select the environment (back) camera by label
-      const backCam = cams.find(c => /back|rear|environment/i.test(c.label));
-      if (backCam) {
-        cameraSelect.value = backCam.deviceId;
-        currentFacingMode = 'environment';
+
+      // Restore saved device
+      const saved = localStorage.getItem('camlink_cam');
+      if (saved && cams.find(c => c.deviceId === saved)) {
+        cameraSelect.value = saved;
+      } else {
+        const backCam = cams.find(c => /back|rear|environment/i.test(c.label));
+        if (backCam) cameraSelect.value = backCam.deviceId;
       }
-    } catch (e) {
-      console.warn('Could not enumerate cameras:', e);
+    } catch(e) {
+      console.warn('Camera enum failed:', e);
     }
   }
   loadCameras();
 
-  // Flip camera (front/back)
-  flipCameraBtn.onclick = async () => {
-    currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
-    // Restart stream with new facing mode
+  // Save camera choice
+  cameraSelect.addEventListener('change', () => {
+    if (cameraSelect.value) localStorage.setItem('camlink_cam', cameraSelect.value);
+    if (currentStream && isPhoneMode) startPhoneStreamAndConnect(false);
+  });
+
+  // ---- Torch support check ----
+  async function checkTorch(stream){
+    torchSupported = false;
+    useTorchChk.disabled = true;
+    useTorchChk.checked = false;
+    if (!stream) return;
+    const track = stream.getVideoTracks()[0];
+    if (!track) return;
+    const caps = track.getCapabilities ? track.getCapabilities() : {};
+    if (caps.torch) {
+      torchSupported = true;
+      useTorchChk.disabled = false;
+    }
+  }
+
+  useTorchChk.addEventListener('change', async () => {
+    if (!currentStream || !torchSupported) return;
+    const track = currentStream.getVideoTracks()[0];
+    if (!track) return;
+    try {
+      await track.applyConstraints({ advanced: [{ torch: useTorchChk.checked }] });
+    } catch(e) {
+      console.warn('Torch error:', e);
+      useTorchChk.checked = false;
+    }
+  });
+
+  // ---- Fullscreen ----
+  fullscreenBtn.onclick = () => {
+    if (localVideo.requestFullscreen) localVideo.requestFullscreen();
+    else if (localVideo.webkitRequestFullscreen) localVideo.webkitRequestFullscreen();
+  };
+
+  // ---- Stop stream ----
+  stopStreamBtn.onclick = () => {
     if (currentStream) {
-      // Stop old tracks
       currentStream.getTracks().forEach(t => t.stop());
       currentStream = null;
     }
-    // Restart camera with new facing mode
+    if (phonePeer && !phonePeer.destroyed) phonePeer.destroy();
+    phonePeer = null;
+    if (activeCall) { activeCall.close(); activeCall = null; }
+    localVideo.srcObject = null;
+    localVideo.style.display = 'none';
+    setStatus(pDot, pStatus, 'wait', 'Stopped');
+    startCameraBtn.disabled = false;
+    flipCameraBtn.disabled = true;
+    stopStreamBtn.disabled = true;
+    fullscreenBtn.style.display = 'none';
+    useTorchChk.disabled = true;
+    useTorchChk.checked = false;
+    modeBadge.classList.remove('live');
+    modeBadge.textContent = isPhoneMode ? 'Phone mode' : 'Webcam + Mic';
+  };
+
+  // ---- Flip camera ----
+  flipCameraBtn.onclick = async () => {
+    currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+    cameraSelect.value = ''; // reset to facingMode
+    if (currentStream) {
+      currentStream.getTracks().forEach(t => t.stop());
+      currentStream = null;
+    }
     await startPhoneStreamAndConnect(true);
   };
 
-  // Main phone connect / start
+  // ================= MAIN PHONE STREAM =================
   async function startPhoneStreamAndConnect(isFlip = false){
     const code = codeInput.value.trim();
     if (code.length !== 4) {
@@ -517,9 +486,9 @@
       return;
     }
 
-    // Disable button during setup
     startCameraBtn.disabled = true;
     flipCameraBtn.disabled = true;
+    stopStreamBtn.disabled = true;
     setStatus(pDot, pStatus, 'wait', 'Requesting media…');
 
     const wantVideo = useVideoChk.checked;
@@ -533,89 +502,81 @@
     }
 
     try {
-      // Build constraints
+      // Build video constraints
       let videoConstraint = false;
       if (wantVideo) {
         const selectedCamId = cameraSelect.value;
+        const [w, h] = (resolutionSelect.value || '1280x720').split('x').map(Number);
         if (selectedCamId) {
-          videoConstraint = { deviceId: { exact: selectedCamId } };
+          videoConstraint = { deviceId: { exact: selectedCamId }, width: { ideal: w }, height: { ideal: h } };
         } else {
-          videoConstraint = { facingMode: currentFacingMode };
+          videoConstraint = { facingMode: currentFacingMode, width: { ideal: w }, height: { ideal: h } };
         }
-        // Add ideal resolution
-        videoConstraint.width = { ideal: 1280 };
-        videoConstraint.height = { ideal: 720 };
       }
 
       const audioConstraint = wantAudio ? {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
+        echoCancellation: true, noiseSuppression: true, autoGainControl: true
       } : false;
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: videoConstraint,
-        audio: audioConstraint
+        video: videoConstraint, audio: audioConstraint
       });
 
-      // Stop old stream if any
-      if (currentStream) {
-        currentStream.getTracks().forEach(t => t.stop());
-      }
+      if (currentStream) currentStream.getTracks().forEach(t => t.stop());
       currentStream = stream;
 
-      // Show local preview
+      // Local preview
       localVideo.srcObject = stream;
       localVideo.style.display = 'block';
-      localVideo.muted = true; // prevent feedback
+      localVideo.muted = true;
+      fullscreenBtn.style.display = 'block';
 
-      // Update camera select if we used facingMode
+      // Torch check
+      await checkTorch(stream);
+
+      // Update camera select if using facingMode
       if (!cameraSelect.value && wantVideo) {
-        // Try to find the active camera device
         const track = stream.getVideoTracks()[0];
         if (track) {
-          const settings = track.getSettings();
-          if (settings.deviceId) {
-            cameraSelect.value = settings.deviceId;
-          }
+          const s = track.getSettings();
+          if (s.deviceId) cameraSelect.value = s.deviceId;
         }
       }
 
-      // --- Setup PeerJS connection ---
-      if (phonePeer && !phonePeer.destroyed) {
-        phonePeer.destroy();
-      }
+      // ---- PeerJS ----
+      if (phonePeer && !phonePeer.destroyed) phonePeer.destroy();
       phonePeer = new Peer({ debug: 1 });
 
       phonePeer.on('open', () => {
         setStatus(pDot, pStatus, 'wait', 'Dialing desktop…');
-        // Call desktop with our stream
         const call = phonePeer.call('camlink-' + code, stream);
         activeCall = call;
 
-        call.on('stream', () => {
-          // Desktop doesn't send video back
-        });
+        call.on('stream', () => { /* desktop → phone, none */ });
         call.on('close', () => {
           setStatus(pDot, pStatus, 'wait', 'Disconnected');
           startCameraBtn.disabled = false;
           flipCameraBtn.disabled = false;
+          stopStreamBtn.disabled = false;
         });
         call.on('error', (err) => {
           console.error('Call error:', err);
           setStatus(pDot, pStatus, 'err', 'Call failed — check code');
           startCameraBtn.disabled = false;
           flipCameraBtn.disabled = false;
+          stopStreamBtn.disabled = false;
         });
 
-        // Mark as live after short delay if no error
         setTimeout(() => {
           if (phonePeer && !phonePeer.destroyed) {
             setStatus(pDot, pStatus, 'live', 'Streaming to desktop ✓');
             startCameraBtn.disabled = false;
             flipCameraBtn.disabled = false;
+            stopStreamBtn.disabled = false;
+            modeBadge.classList.add('live');
+            modeBadge.textContent = '● Live (phone)';
           }
-        }, 1500);
+        }, 1200);
       });
 
       phonePeer.on('error', (err) => {
@@ -623,9 +584,10 @@
         setStatus(pDot, pStatus, 'err', 'Could not reach that code — check and retry');
         startCameraBtn.disabled = false;
         flipCameraBtn.disabled = false;
+        stopStreamBtn.disabled = false;
       });
 
-    } catch (e) {
+    } catch(e) {
       console.error('Media error:', e);
       let msg = 'Camera/mic permission denied';
       if (e.name === 'NotFoundError') msg = 'No camera/mic found';
@@ -634,28 +596,19 @@
       setStatus(pDot, pStatus, 'err', msg);
       startCameraBtn.disabled = false;
       flipCameraBtn.disabled = false;
+      stopStreamBtn.disabled = false;
     }
   }
 
   startCameraBtn.onclick = () => startPhoneStreamAndConnect(false);
 
-  // When camera select changes, restart if already streaming
-  cameraSelect.addEventListener('change', () => {
-    if (currentStream && isPhoneMode) {
-      startPhoneStreamAndConnect(false);
-    }
-  });
-
-  // Cleanup on page unload
+  // ---- Cleanup ----
   window.addEventListener('beforeunload', () => {
-    if (currentStream) {
-      currentStream.getTracks().forEach(t => t.stop());
-    }
+    if (currentStream) currentStream.getTracks().forEach(t => t.stop());
     if (phonePeer && !phonePeer.destroyed) phonePeer.destroy();
     if (desktopPeer && !desktopPeer.destroyed) desktopPeer.destroy();
   });
 
-  // Initial badge update
   modeBadge.textContent = 'Webcam + Mic';
 })();
 </script>
