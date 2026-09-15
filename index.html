@@ -3,11 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>CamLink — phone as webcam + mic + virtual cam guide</title>
+  <title>CamLink — phone as webcam + mic</title>
+
+  <!-- PWA meta -->
+  <meta name="theme-color" content="#12141a">
+  <meta name="description" content="Use your phone as a webcam + microphone over P2P. No install needed.">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="CamLink">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
+
   <style>
     :root{
       --bg:#12141a; --surface:#1b1e27; --surface-2:#242833;
@@ -85,6 +96,10 @@
       background:transparent; border-color:var(--line);
       font-size:0.86rem; padding:9px 0;
     }
+    button.install{
+      background:var(--accent); color:#fff; border-color:var(--accent);
+      font-weight:600; display:none;
+    }
     .row-buttons{display:flex; gap:8px; margin-bottom:10px;}
     .row-buttons button{flex:1; margin-bottom:0;}
     input.code-input{
@@ -135,6 +150,7 @@
       margin-left:6px; font-weight:500; vertical-align:middle;
     }
     .badge.live{background:rgba(53,208,160,0.15);border-color:var(--live);color:var(--live);}
+    .badge.pwa{background:rgba(91,141,239,0.15);border-color:var(--accent);color:var(--accent);}
     .guide{
       margin-top:14px; padding:14px; border-radius:8px;
       background:var(--surface-2); border:1px solid var(--line);
@@ -163,12 +179,23 @@
       color:var(--accent); border:1px solid rgba(91,141,239,0.3);
       margin-right:6px;
     }
+    .wakelock{
+      display:flex; align-items:center; gap:6px;
+      font-size:0.78rem; color:var(--live);
+      margin-bottom:10px;
+    }
+    .wakelock .dot{
+      background:var(--live);
+      box-shadow:0 0 0 3px rgba(53,208,160,0.18);
+    }
   </style>
 </head>
 <body>
 <div class="wrap">
   <h1>CamLink <span class="badge" id="modeBadge">Webcam + Mic</span></h1>
-  <p class="sub">Stream your phone's camera & microphone into your desktop browser. Built-in guide to make it appear as a real system camera.</p>
+  <p class="sub">Stream your phone's camera & microphone into your desktop browser. Install as an app for a native-like experience.</p>
+
+  <button class="action install" id="installBtn">📲 Install CamLink as app</button>
 
   <div class="tabs">
     <button class="tab active" id="tabDesktop">Desktop</button>
@@ -185,7 +212,6 @@
       <button class="action" id="copyLink">Copy link for phone</button>
       <video id="remoteVideo" autoplay playsinline style="display:none;"></video>
 
-      <!-- ===== VIRTUAL CAMERA GUIDE (Option B + C) ===== -->
       <div class="guide" id="virtualCamGuide">
         <button class="close-guide" id="closeGuide" title="Hide guide">✕</button>
         <h3>📷 Make it a system camera (no screen share)</h3>
@@ -196,10 +222,10 @@
           <li><span class="pill">Easiest</span>Install <strong>OBS Studio</strong> (free) → it installs <code>OBS Virtual Camera</code>.</li>
           <li>In OBS: <code>+</code> under Sources → <strong>Window Capture</strong> → pick this browser tab.</li>
           <li>Click <strong>Start Virtual Camera</strong> in OBS (bottom right).</li>
-          <li>Now in Zoom/Meet/Chrome settings, choose <code>OBS Virtual Camera</code> — CamLink feed appears as a real webcam.</li>
+          <li>Now in Zoom/Meet/Chrome settings, choose <code>OBS Virtual Camera</code>.</li>
         </ol>
         <p style="margin:10px 0 0;color:var(--text-dim);">
-          <strong>Alternative (no OBS):</strong> Use <strong>EpocCam</strong>, <strong>Iriun</strong>, or <strong>DroidCam</strong> — they install a virtual driver and also let you select the phone as a camera. CamLink gives you the same result but stays open-source.
+          <strong>Alternative:</strong> Use <strong>EpocCam</strong>, <strong>Iriun</strong>, or <strong>DroidCam</strong>.
         </p>
       </div>
     </div>
@@ -209,21 +235,18 @@
       <div class="field-label">Enter the code shown on your desktop</div>
       <input class="code-input" id="codeInput" inputmode="numeric" maxlength="4" placeholder="····">
 
-      <!-- Camera selection (Option A: in-page picker) -->
       <div class="select-wrap">
         <select id="cameraSelect" aria-label="Camera">
           <option value="">-- Select camera --</option>
         </select>
       </div>
 
-      <!-- Toggles -->
       <div class="toggle-row">
         <label><input type="checkbox" id="useAudio" checked> 🎤 Microphone</label>
         <label><input type="checkbox" id="useVideo" checked> 📹 Camera</label>
         <label><input type="checkbox" id="useTorch"> 🔦 Torch</label>
       </div>
 
-      <!-- Resolution selector (Option A) -->
       <div class="select-wrap">
         <select id="resolutionSelect" aria-label="Resolution">
           <option value="1280x720">1280 × 720 (HD)</option>
@@ -231,6 +254,10 @@
           <option value="640x480">640 × 480 (SD)</option>
           <option value="3840x2160">3840 × 2160 (4K)</option>
         </select>
+      </div>
+
+      <div class="wakelock" id="wakelockIndicator" style="display:none;">
+        <span class="dot"></span> Screen awake — streaming
       </div>
 
       <div class="row-buttons">
@@ -244,7 +271,7 @@
 
       <div class="status"><span class="dot wait" id="pDot"></span><span id="pStatus">Not connected</span></div>
       <video id="localVideo" autoplay playsinline muted style="display:none;"></video>
-      <div class="note">Keep this tab open and your phone unlocked while streaming. Works best on the same WiFi network.</div>
+      <div class="note">Keep this app open and your phone unlocked while streaming. Works best on the same WiFi network.</div>
     </div>
 
   </div>
@@ -252,6 +279,78 @@
 
 <script>
 (function(){
+  // ================= PWA: SERVICE WORKER =================
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(reg => console.log('[PWA] SW registered:', reg.scope))
+        .catch(err => console.warn('[PWA] SW failed:', err));
+    });
+  }
+
+  // ================= PWA: INSTALL PROMPT =================
+  let deferredPrompt = null;
+  const installBtn = document.getElementById('installBtn');
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.style.display = 'block';
+  });
+
+  installBtn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log('[PWA] Install outcome:', outcome);
+    deferredPrompt = null;
+    installBtn.style.display = 'none';
+  });
+
+  window.addEventListener('appinstalled', () => {
+    console.log('[PWA] App installed');
+    installBtn.style.display = 'none';
+  });
+
+  // Detect standalone mode
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone === true;
+  if (isStandalone) {
+    document.getElementById('modeBadge').classList.add('pwa');
+    document.getElementById('modeBadge').textContent = '● PWA';
+  }
+
+  // ================= WAKE LOCK =================
+  let wakeLock = null;
+  const wakelockIndicator = document.getElementById('wakelockIndicator');
+
+  async function requestWakeLock(){
+    if (!('wakeLock' in navigator)) return;
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakelockIndicator.style.display = 'flex';
+      wakeLock.addEventListener('release', () => {
+        wakelockIndicator.style.display = 'none';
+      });
+    } catch(e) {
+      console.warn('Wake lock failed:', e);
+    }
+  }
+
+  function releaseWakeLock(){
+    if (wakeLock) {
+      wakeLock.release().catch(()=>{});
+      wakeLock = null;
+    }
+    wakelockIndicator.style.display = 'none';
+  }
+
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible' && currentStream) {
+      await requestWakeLock();
+    }
+  });
+
   // ================= GLOBAL STATE =================
   const params = new URLSearchParams(location.search);
   const tabDesktop = document.getElementById('tabDesktop');
@@ -260,7 +359,6 @@
   const panelPhone = document.getElementById('panelPhone');
   const modeBadge = document.getElementById('modeBadge');
 
-  // Desktop
   const roomCodeEl = document.getElementById('roomCode');
   const dDot = document.getElementById('dDot');
   const dStatus = document.getElementById('dStatus');
@@ -269,7 +367,6 @@
   const closeGuide = document.getElementById('closeGuide');
   const virtualCamGuide = document.getElementById('virtualCamGuide');
 
-  // Phone
   const codeInput = document.getElementById('codeInput');
   const startCameraBtn = document.getElementById('startCamera');
   const flipCameraBtn = document.getElementById('flipCamera');
@@ -284,7 +381,6 @@
   const useVideoChk = document.getElementById('useVideo');
   const useTorchChk = document.getElementById('useTorch');
 
-  // Peer / media state
   let desktopPeer = null;
   let phonePeer = null;
   let currentStream = null;
@@ -306,12 +402,11 @@
     panelDesktop.classList.toggle('active', isDesktop);
     panelPhone.classList.toggle('active', !isDesktop);
     isPhoneMode = !isDesktop;
-    modeBadge.textContent = isPhoneMode ? 'Phone mode' : 'Webcam + Mic';
+    if (!isStandalone) modeBadge.textContent = isPhoneMode ? 'Phone mode' : 'Webcam + Mic';
   }
   tabDesktop.onclick = () => showTab('desktop');
   tabPhone.onclick = () => showTab('phone');
 
-  // Hide guide
   closeGuide.onclick = () => { virtualCamGuide.style.display = 'none'; };
 
   // ================= DESKTOP PEER =================
@@ -374,10 +469,8 @@
   if (params.get('code')) codeInput.value = params.get('code');
   if (params.get('mode') === 'phone') showTab('phone');
 
-  // ---- Camera enumeration + persistence ----
   async function loadCameras(){
     try {
-      // Ask once so labels are available
       const tmp = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       tmp.getTracks().forEach(t => t.stop());
 
@@ -392,7 +485,6 @@
         cameraSelect.appendChild(opt);
       });
 
-      // Restore saved device
       const saved = localStorage.getItem('camlink_cam');
       if (saved && cams.find(c => c.deviceId === saved)) {
         cameraSelect.value = saved;
@@ -406,13 +498,11 @@
   }
   loadCameras();
 
-  // Save camera choice
   cameraSelect.addEventListener('change', () => {
     if (cameraSelect.value) localStorage.setItem('camlink_cam', cameraSelect.value);
     if (currentStream && isPhoneMode) startPhoneStreamAndConnect(false);
   });
 
-  // ---- Torch support check ----
   async function checkTorch(stream){
     torchSupported = false;
     useTorchChk.disabled = true;
@@ -439,13 +529,11 @@
     }
   });
 
-  // ---- Fullscreen ----
   fullscreenBtn.onclick = () => {
     if (localVideo.requestFullscreen) localVideo.requestFullscreen();
     else if (localVideo.webkitRequestFullscreen) localVideo.webkitRequestFullscreen();
   };
 
-  // ---- Stop stream ----
   stopStreamBtn.onclick = () => {
     if (currentStream) {
       currentStream.getTracks().forEach(t => t.stop());
@@ -463,14 +551,14 @@
     fullscreenBtn.style.display = 'none';
     useTorchChk.disabled = true;
     useTorchChk.checked = false;
+    releaseWakeLock();
     modeBadge.classList.remove('live');
     modeBadge.textContent = isPhoneMode ? 'Phone mode' : 'Webcam + Mic';
   };
 
-  // ---- Flip camera ----
   flipCameraBtn.onclick = async () => {
     currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
-    cameraSelect.value = ''; // reset to facingMode
+    cameraSelect.value = '';
     if (currentStream) {
       currentStream.getTracks().forEach(t => t.stop());
       currentStream = null;
@@ -478,7 +566,6 @@
     await startPhoneStreamAndConnect(true);
   };
 
-  // ================= MAIN PHONE STREAM =================
   async function startPhoneStreamAndConnect(isFlip = false){
     const code = codeInput.value.trim();
     if (code.length !== 4) {
@@ -502,7 +589,6 @@
     }
 
     try {
-      // Build video constraints
       let videoConstraint = false;
       if (wantVideo) {
         const selectedCamId = cameraSelect.value;
@@ -525,16 +611,14 @@
       if (currentStream) currentStream.getTracks().forEach(t => t.stop());
       currentStream = stream;
 
-      // Local preview
       localVideo.srcObject = stream;
       localVideo.style.display = 'block';
       localVideo.muted = true;
       fullscreenBtn.style.display = 'block';
 
-      // Torch check
       await checkTorch(stream);
+      await requestWakeLock();
 
-      // Update camera select if using facingMode
       if (!cameraSelect.value && wantVideo) {
         const track = stream.getVideoTracks()[0];
         if (track) {
@@ -543,7 +627,6 @@
         }
       }
 
-      // ---- PeerJS ----
       if (phonePeer && !phonePeer.destroyed) phonePeer.destroy();
       phonePeer = new Peer({ debug: 1 });
 
@@ -552,7 +635,7 @@
         const call = phonePeer.call('camlink-' + code, stream);
         activeCall = call;
 
-        call.on('stream', () => { /* desktop → phone, none */ });
+        call.on('stream', () => {});
         call.on('close', () => {
           setStatus(pDot, pStatus, 'wait', 'Disconnected');
           startCameraBtn.disabled = false;
@@ -602,11 +685,11 @@
 
   startCameraBtn.onclick = () => startPhoneStreamAndConnect(false);
 
-  // ---- Cleanup ----
   window.addEventListener('beforeunload', () => {
     if (currentStream) currentStream.getTracks().forEach(t => t.stop());
     if (phonePeer && !phonePeer.destroyed) phonePeer.destroy();
     if (desktopPeer && !desktopPeer.destroyed) desktopPeer.destroy();
+    releaseWakeLock();
   });
 
   modeBadge.textContent = 'Webcam + Mic';
