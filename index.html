@@ -5,9 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>CamLink — phone as webcam + mic</title>
 
-  <!-- PWA meta -->
   <meta name="theme-color" content="#12141a">
-  <meta name="description" content="Use your phone as a webcam + microphone over P2P. No install needed.">
+  <meta name="description" content="Use your phone as a webcam + microphone over P2P.">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -113,6 +112,28 @@
       width:100%; border-radius:8px; background:#000;
       margin-top:6px; display:block; max-height:320px; object-fit:cover;
     }
+    .video-wrap{position:relative; margin-top:6px;}
+    .video-wrap .stats{
+      position:absolute; top:10px; right:10px;
+      font-size:0.7rem; padding:3px 8px; border-radius:6px;
+      background:rgba(0,0,0,0.65); color:var(--live);
+      font-family:ui-monospace,monospace; pointer-events:none;
+      display:none;
+    }
+    .video-wrap .stats.show{display:block;}
+    .play-overlay{
+      position:absolute; inset:0; display:none;
+      align-items:center; justify-content:center;
+      background:rgba(0,0,0,0.55); border-radius:8px;
+      cursor:pointer; z-index:5;
+    }
+    .play-overlay.show{display:flex;}
+    .play-overlay button{
+      padding:14px 26px; border-radius:10px;
+      background:var(--live); color:#0c1512;
+      border:none; font-size:1rem; font-weight:700;
+      cursor:pointer; font-family:'Inter',sans-serif;
+    }
     .note{
       font-size:0.8rem; color:var(--text-dim); line-height:1.55;
       margin-top:16px; padding-top:16px; border-top:1px solid var(--line);
@@ -210,23 +231,27 @@
       <div class="code" id="roomCode">····</div>
       <div class="status"><span class="dot wait" id="dDot"></span><span id="dStatus">Setting up…</span></div>
       <button class="action" id="copyLink">Copy link for phone</button>
-      <video id="remoteVideo" autoplay playsinline style="display:none;"></video>
+
+      <div class="video-wrap">
+        <video id="remoteVideo" autoplay playsinline muted style="display:none;"></video>
+        <div class="stats" id="remoteStats">--</div>
+        <div class="play-overlay" id="playOverlay">
+          <button id="playBtn">▶ Tap to play video</button>
+        </div>
+      </div>
 
       <div class="guide" id="virtualCamGuide">
         <button class="close-guide" id="closeGuide" title="Hide guide">✕</button>
         <h3>📷 Make it a system camera (no screen share)</h3>
         <p style="margin:4px 0 10px;color:var(--text-dim);">
-          A webpage can't install a driver, so to see CamLink inside Zoom / Meet / Chrome's camera dropdown, you need a virtual driver. Pick one:
+          A webpage can't install a driver, so to see CamLink inside Zoom / Meet / Chrome's camera dropdown, you need a virtual driver.
         </p>
         <ol>
-          <li><span class="pill">Easiest</span>Install <strong>OBS Studio</strong> (free) → it installs <code>OBS Virtual Camera</code>.</li>
-          <li>In OBS: <code>+</code> under Sources → <strong>Window Capture</strong> → pick this browser tab.</li>
-          <li>Click <strong>Start Virtual Camera</strong> in OBS (bottom right).</li>
-          <li>Now in Zoom/Meet/Chrome settings, choose <code>OBS Virtual Camera</code>.</li>
+          <li><span class="pill">Easiest</span>Install <strong>OBS Studio</strong> → it installs <code>OBS Virtual Camera</code>.</li>
+          <li>In OBS: <code>+</code> → <strong>Window Capture (PipeWire)</strong> → pick the CamLink tab.</li>
+          <li>Click <strong>Start Virtual Camera</strong> in OBS.</li>
+          <li>In Zoom/Meet/ome.tv, choose <code>OBS Virtual Camera</code>.</li>
         </ol>
-        <p style="margin:10px 0 0;color:var(--text-dim);">
-          <strong>Alternative:</strong> Use <strong>EpocCam</strong>, <strong>Iriun</strong>, or <strong>DroidCam</strong>.
-        </p>
       </div>
     </div>
 
@@ -279,7 +304,7 @@
 
 <script>
 (function(){
-  // ================= PWA: SERVICE WORKER =================
+  // ================= PWA =================
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('service-worker.js')
@@ -288,70 +313,42 @@
     });
   }
 
-  // ================= PWA: INSTALL PROMPT =================
   let deferredPrompt = null;
   const installBtn = document.getElementById('installBtn');
-
   window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    installBtn.style.display = 'block';
+    e.preventDefault(); deferredPrompt = e; installBtn.style.display = 'block';
   });
-
   installBtn.addEventListener('click', async () => {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    console.log('[PWA] Install outcome:', outcome);
-    deferredPrompt = null;
-    installBtn.style.display = 'none';
+    await deferredPrompt.userChoice;
+    deferredPrompt = null; installBtn.style.display = 'none';
   });
+  window.addEventListener('appinstalled', () => { installBtn.style.display = 'none'; });
 
-  window.addEventListener('appinstalled', () => {
-    console.log('[PWA] App installed');
-    installBtn.style.display = 'none';
-  });
-
-  // Detect standalone mode
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches
     || window.navigator.standalone === true;
-  if (isStandalone) {
-    document.getElementById('modeBadge').classList.add('pwa');
-    document.getElementById('modeBadge').textContent = '● PWA';
-  }
 
   // ================= WAKE LOCK =================
   let wakeLock = null;
   const wakelockIndicator = document.getElementById('wakelockIndicator');
-
   async function requestWakeLock(){
     if (!('wakeLock' in navigator)) return;
     try {
       wakeLock = await navigator.wakeLock.request('screen');
       wakelockIndicator.style.display = 'flex';
-      wakeLock.addEventListener('release', () => {
-        wakelockIndicator.style.display = 'none';
-      });
-    } catch(e) {
-      console.warn('Wake lock failed:', e);
-    }
+      wakeLock.addEventListener('release', () => { wakelockIndicator.style.display = 'none'; });
+    } catch(e) { console.warn('Wake lock failed:', e); }
   }
-
   function releaseWakeLock(){
-    if (wakeLock) {
-      wakeLock.release().catch(()=>{});
-      wakeLock = null;
-    }
+    if (wakeLock) { wakeLock.release().catch(()=>{}); wakeLock = null; }
     wakelockIndicator.style.display = 'none';
   }
-
   document.addEventListener('visibilitychange', async () => {
-    if (document.visibilityState === 'visible' && currentStream) {
-      await requestWakeLock();
-    }
+    if (document.visibilityState === 'visible' && currentStream) await requestWakeLock();
   });
 
-  // ================= GLOBAL STATE =================
+  // ================= STATE =================
   const params = new URLSearchParams(location.search);
   const tabDesktop = document.getElementById('tabDesktop');
   const tabPhone = document.getElementById('tabPhone');
@@ -363,6 +360,9 @@
   const dDot = document.getElementById('dDot');
   const dStatus = document.getElementById('dStatus');
   const remoteVideo = document.getElementById('remoteVideo');
+  const remoteStats = document.getElementById('remoteStats');
+  const playOverlay = document.getElementById('playOverlay');
+  const playBtn = document.getElementById('playBtn');
   const copyLinkBtn = document.getElementById('copyLink');
   const closeGuide = document.getElementById('closeGuide');
   const virtualCamGuide = document.getElementById('virtualCamGuide');
@@ -389,7 +389,7 @@
   let isPhoneMode = false;
   let torchSupported = false;
 
-  // ================= UI HELPERS =================
+  // ================= HELPERS =================
   function randomCode(){ return String(Math.floor(1000 + Math.random()*9000)); }
   function setStatus(dotEl, textEl, mode, text){
     dotEl.className = 'dot ' + (mode || '');
@@ -406,8 +406,47 @@
   }
   tabDesktop.onclick = () => showTab('desktop');
   tabPhone.onclick = () => showTab('phone');
-
   closeGuide.onclick = () => { virtualCamGuide.style.display = 'none'; };
+
+  // ================= FIX: Force remote video to play =================
+  async function forcePlayRemote(){
+    try {
+      remoteVideo.muted = true; // required for autoplay on Chrome/Linux
+      await remoteVideo.play();
+      playOverlay.classList.remove('show');
+      console.log('[CamLink] remote video playing');
+      return true;
+    } catch(e) {
+      console.warn('[CamLink] autoplay blocked:', e);
+      playOverlay.classList.add('show');
+      return false;
+    }
+  }
+  playBtn.onclick = () => forcePlayRemote();
+  remoteVideo.addEventListener('click', () => forcePlayRemote());
+
+  // ================= FIX: Detect first frame =================
+  remoteVideo.addEventListener('loadedmetadata', () => {
+    console.log('[CamLink] metadata loaded',
+      remoteVideo.videoWidth + 'x' + remoteVideo.videoHeight);
+  });
+  remoteVideo.addEventListener('resize', () => {
+    console.log('[CamLink] video resize →',
+      remoteVideo.videoWidth + 'x' + remoteVideo.videoHeight);
+  });
+  remoteVideo.addEventListener('playing', () => {
+    console.log('[CamLink] video playing event');
+    remoteStats.classList.add('show');
+  });
+
+  // Update stats overlay every second
+  setInterval(() => {
+    if (remoteVideo.srcObject && remoteVideo.videoWidth > 0) {
+      remoteStats.textContent = remoteVideo.videoWidth + '×' + remoteVideo.videoHeight
+        + ' · ' + (remoteVideo.readyState >= 3 ? 'playing' : 'buffering');
+      remoteStats.classList.add('show');
+    }
+  }, 1000);
 
   // ================= DESKTOP PEER =================
   const myCode = randomCode();
@@ -415,7 +454,17 @@
 
   function initDesktopPeer(code){
     if (desktopPeer && !desktopPeer.destroyed) desktopPeer.destroy();
-    desktopPeer = new Peer('camlink-' + code, { debug: 1 });
+    desktopPeer = new Peer('camlink-' + code, {
+      debug: 1,
+      // FIX: force VP8 for reliable Linux decode, skip H.264
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ],
+        sdpSemantics: 'unified-plan'
+      }
+    });
 
     desktopPeer.on('open', () => {
       setStatus(dDot, dStatus, 'wait', 'Waiting for phone to connect…');
@@ -431,20 +480,58 @@
       }
     });
     desktopPeer.on('call', (call) => {
+      console.log('[CamLink] incoming call');
       call.answer();
+
+      // FIX: rewrite SDP to prefer VP8 over H.264
+      const origSetRemote = call.peerConnection.setRemoteDescription.bind(call.peerConnection);
+      call.peerConnection.setRemoteDescription = async (desc) => {
+        if (desc && desc.sdp) {
+          desc.sdp = preferVP8(desc.sdp);
+        }
+        return origSetRemote(desc);
+      };
+
       activeCall = call;
+
       call.on('stream', (stream) => {
+        console.log('[CamLink] got remote stream, tracks:', stream.getTracks().map(t => t.kind));
         remoteVideo.srcObject = stream;
         remoteVideo.style.display = 'block';
+        remoteVideo.muted = true;
         remoteVideo.volume = 1.0;
-        setStatus(dDot, dStatus, 'live', 'Connected — live feed + audio');
-        modeBadge.classList.add('live');
-        modeBadge.textContent = '● Live';
+
+        // Try to play immediately, then again on canplay
+        forcePlayRemote();
+        remoteVideo.addEventListener('canplay', forcePlayRemote, { once: true });
+
+        setStatus(dDot, dStatus, 'wait', 'Stream received — waiting for first frame…');
+
+        // Detect when frames actually arrive
+        const checkFrames = setInterval(() => {
+          if (remoteVideo.videoWidth > 0) {
+            clearInterval(checkFrames);
+            setStatus(dDot, dStatus, 'live', 'Connected — live feed running ✓');
+            modeBadge.classList.add('live');
+            modeBadge.textContent = '● Live';
+          }
+        }, 300);
+
+        // Give up after 8s
+        setTimeout(() => {
+          if (remoteVideo.videoWidth === 0) {
+            clearInterval(checkFrames);
+            setStatus(dDot, dStatus, 'err',
+              'Connected but no frames — check codec / try a different resolution');
+          }
+        }, 8000);
       });
+
       call.on('close', () => {
         setStatus(dDot, dStatus, 'wait', 'Phone disconnected');
         remoteVideo.style.display = 'none';
         remoteVideo.srcObject = null;
+        remoteStats.classList.remove('show');
         modeBadge.classList.remove('live');
         modeBadge.textContent = isPhoneMode ? 'Phone mode' : 'Webcam + Mic';
         activeCall = null;
@@ -455,6 +542,34 @@
       });
     });
   }
+
+  // FIX: reorder SDP m=video codecs to put VP8 first
+  function preferVP8(sdp){
+    if (!sdp.includes('m=video')) return sdp;
+    const lines = sdp.split('\r\n');
+    const videoIdx = lines.findIndex(l => l.startsWith('m=video'));
+    if (videoIdx === -1) return sdp;
+
+    // Collect payload types for VP8
+    const vp8PTs = new Set();
+    lines.forEach(l => {
+      // a=rtpmap:96 VP8/90000
+      const m = l.match(/^a=rtpmap:(\d+)\s+VP8\/90000/i);
+      if (m) vp8PTs.add(m[1]);
+    });
+    if (vp8PTs.size === 0) return sdp;
+
+    // Rewrite m=video line: move VP8 PTs to front
+    const mLine = lines[videoIdx];
+    const parts = mLine.split(' ');
+    const header = parts.slice(0, 3); // "m=video 9 UDP/TLS/RTP/SAVPF"
+    const pts = parts.slice(3);
+    const vp8First = [...pts.filter(pt => vp8PTs.has(pt)),
+                     ...pts.filter(pt => !vp8PTs.has(pt))];
+    lines[videoIdx] = [...header, ...vp8First].join(' ');
+    return lines.join('\r\n');
+  }
+
   initDesktopPeer(myCode);
 
   copyLinkBtn.onclick = () => {
@@ -628,11 +743,29 @@
       }
 
       if (phonePeer && !phonePeer.destroyed) phonePeer.destroy();
-      phonePeer = new Peer({ debug: 1 });
+      phonePeer = new Peer({
+        debug: 1,
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+          ],
+          sdpSemantics: 'unified-plan'
+        }
+      });
 
       phonePeer.on('open', () => {
         setStatus(pDot, pStatus, 'wait', 'Dialing desktop…');
         const call = phonePeer.call('camlink-' + code, stream);
+
+        // FIX: force VP8 on the phone too
+        const origCreateOffer = call.peerConnection.createOffer.bind(call.peerConnection);
+        call.peerConnection.createOffer = async (opts) => {
+          const offer = await origCreateOffer(opts);
+          if (offer && offer.sdp) offer.sdp = preferVP8(offer.sdp);
+          return offer;
+        };
+
         activeCall = call;
 
         call.on('stream', () => {});
